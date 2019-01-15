@@ -76,6 +76,7 @@ public class Window extends JFrame {
 
         setVisible(true);
         requestFocus();
+        engine.init();
     }
 
     public void startGame(JButton button) {
@@ -124,6 +125,9 @@ public class Window extends JFrame {
         @Override
         public void paintComponent(Graphics g) {
             super.paintComponent(g);
+
+            System.out.println("paintComponent");
+
             setBackground(CANVAS_BG_COLOR);
 
             /**

@@ -15,6 +15,7 @@ public class Engine extends Timer {
     public Random randomer;
     public int startTime = -20;
     public int totalTime = startTime;
+    private final double UPDATE_CAP = 1.0 / 60.0;
 
     public boolean running = false;
     public boolean hasStarted = false;
@@ -31,42 +32,95 @@ public class Engine extends Timer {
 
         this.lazers = new ArrayList<>();
         this.healPods = new ArrayList<>();
-
-        init();
     }
 
     public void init() {
+        System.out.println("Engine init");
         running = true;
+
+        boolean render = false;
+        double firstTime = 0;
+        double lastTime = System.nanoTime() / 1000000000.0;
+        double passedTime = 0;
+        double unproccestedTime = 0;
+
+        double frameTime = 0;
+        int frames = 0;
+        int fps = 0;
+
         spawnNewHealpod(currentWindowWidth/2-20, currentWindowHeight/2-20);
 
-        scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
+        while(running) {
+            render = false;
+
+            firstTime = System.nanoTime() / 1000000000.0;
+            passedTime = firstTime - lastTime;
+            lastTime = firstTime;
+
+            unproccestedTime += passedTime;
+            frameTime += passedTime;
+
+            while(unproccestedTime >= UPDATE_CAP) {
+                unproccestedTime -= UPDATE_CAP;
+                render = true;
+
+                //Update game and get inputs    -   -   -   -   -   -   -   -   -   -
+                // Let the player move before the game has started
                 if (!hasLost && !hasStarted) {
                     checkPlayer(player, drawPanel);
                 }
+
+                // Prompt a reset when you lose and reset the game
+                if(hasLost && !resetPrompt) {
+                    drawPanel.updateParentFrame();
+                    resetPrompt = true;
+                    reset();
+                }
+
+                // The main movement loop
+                if(!hasLost) {
+                    checkPlayer(player, drawPanel);
+                    // Put all lazers in motion
+                    for (Lazer l : lazers) {
+                        if (l.getDirection() == 0 || l.getDirection() == 2) {
+                            l.roamX(100);
+                        } else {
+                            l.roamY(100);
+                        }
+                    }
+
+                    checkLazerCollision(lazers, drawPanel);
+                    checkHealPodCollision(healPods, drawPanel);
+                }
+                //  -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -   -
+
+                if(frameTime >= 1.0) {
+                    frameTime = 0;
+                    fps = frames;
+                    frames = 0;
+                }
             }
-        }, 0, 40);
 
+            if(render) {
+                System.out.println("Render!");
+                //Clear the screen and render again
+                renderLazers(lazers, drawPanel);
+                renderHealPods(healPods, drawPanel);
 
-        //TODO: Refactor from here
-        if(hasStarted) {
-
-            //Check player
-
-
-            //If you lose, and resetPrompt has not been displayed yet
-            if(hasLost && !resetPrompt) {
-                drawPanel.updateParentFrame();
-                resetPrompt = true;
-                reset();
+                frames++;
+            } else {
+                try {
+                    Thread.sleep(1);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
 
     public void start() {
         hasStarted = true;
-
+        /*
         scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
@@ -87,11 +141,12 @@ public class Engine extends Timer {
                         }
                     }
 
-                    checkAllLazers(lazers, drawPanel);
-                    checkAllHealpods(healPods, drawPanel);
+                    //checkAllLazers(lazers, drawPanel);
+                    //checkAllHealpods(healPods, drawPanel);
                 }
             }
         }, 0, 40);
+        //A timer with 1 second initial delay, followed by 1 second ticks
         scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
@@ -127,6 +182,7 @@ public class Engine extends Timer {
 
             }
         }, 1000, 1000);
+        */
     }
 
     public void reset() {
@@ -169,15 +225,24 @@ public class Engine extends Timer {
         drawPanel.repaint(getBigClipX1(), getBigClipY1(),
                 getBigClipX2(), getBigClipY2());
     }
-    private void checkAllLazers(ArrayList<Lazer> lazers, Window.DrawPanel drawPanel) {
+    private void checkLazerCollision(ArrayList<Lazer> lazers, Window.DrawPanel drawPanel) {
         for(Lazer l : lazers) {
             l.checkCollision(player);
+        }
+    }
+    private void renderLazers(ArrayList<Lazer> lazers, Window.DrawPanel drawPanel) {
+        for(Lazer l : lazers) {
             drawPanel.repaint(l.getClip(3));
         }
     }
-    private void checkAllHealpods(ArrayList<HealPod> healPods, Window.DrawPanel drawPanel) {
-        for (HealPod hp : healPods) {
+
+    private void checkHealPodCollision(ArrayList<HealPod> healPods, Window.DrawPanel drawPanel) {
+        for(HealPod hp : healPods) {
             hp.checkCollision(player);
+        }
+    }
+    private void renderHealPods(ArrayList<HealPod> healPods, Window.DrawPanel drawPanel) {
+        for(HealPod hp : healPods) {
             drawPanel.repaint(hp.getClip(3));
         }
     }
@@ -281,6 +346,7 @@ public class Engine extends Timer {
     }
 
     public void win() {
+        //TODO: Well.. theres no winning in this game..?
     	System.out.println("You have won!");
     }
 
